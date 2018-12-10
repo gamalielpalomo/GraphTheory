@@ -5,9 +5,11 @@
  */
 package GraphTools;
 import Global.Globals;
+import static java.lang.Math.min;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 /**
  *
  * @author Tania Rodriguez
@@ -21,6 +23,9 @@ public class PN {
     private int[][] postMatrix;
     private int[][] incidenceMatrix;
     private int[] marking;
+    List<List<Node>> sccAll;
+    private int index;
+    private Stack<Node> S;
     
     public PN(int[][] preMatrix, int[][] postMatrix, int[] marking){
         this.preMatrix = preMatrix;
@@ -28,6 +33,10 @@ public class PN {
         incidenceMatrix = buildIncidenceMatrix();
         this.marking = marking;
         coverGraph = null;
+        //For Tarjan
+        
+        S = new Stack<>();
+        index = 0;
     }
     
     public void buildCoverGraph(){
@@ -129,8 +138,107 @@ public class PN {
             }
             
         }
+        
         connectTarjanDuplicatesCoverGraph();
     }
+    
+    public List<List<Node>> Tarjan(Graph G){
+        //output: set of strongly connected components (sets of vertices) 
+        sccAll = new ArrayList<>();
+                   
+        this.index=1;
+        S.clear();
+             
+        //Iterate through all nodes not visited yet.
+        System.out.print("\nTotal number of nodes: " + Integer.toString(G.getNodes().size())+"\n");
+        G.getNodes().stream().forEach((v) -> {
+            if (v.index == Integer.MAX_VALUE){
+                //List<Node> scc = strongconnect(v);
+                strongconnect(v);
+                //if(scc != null){                    
+                //    sccAll.add(scc);
+                //}
+            }
+        });
+        
+        
+        //Filtrar los circtuitos de un solo nodo que no tengan aristas que de salida 
+        this.removeComponents(sccAll);
+        return sccAll;
+    }
+    
+    private void removeComponents(List<List<Node>> scc){
+        
+        List<Node> circuit = null;
+        Node node = null;
+        Transition t = null;
+        boolean delete = false;
+                
+        for(int i = 0; i < scc.size(); i++){
+            circuit = scc.get(i);
+            delete = true;
+            if(circuit.size() == 1){
+               node = circuit.get(0);
+               for(int j = 0; j < node.getPostTransitions().size(); j++){
+                   t = node.getPostTransitions().get(j);
+                   if(node.getId().compareTo(t.getEnd().getId())==0){
+                      delete = false; 
+                   }
+               }
+               if(delete){
+                   scc.remove(circuit);
+                   i--;
+               }
+            }
+        }
+    }
+    
+    public void strongconnect(Node v){        
+        List<Node> scc;     // List to hold the nodes of any SCC found.
+        Node wscc;          
+        
+        // Set the depth index for node v to the smallest unused index
+        v.index = index;
+        v.lowlink = index;
+        index = index + 1;
+        S.push(v);
+        v.onStack = true;
+           
+        // Consider successors of v
+        //for each (v, w) in E do
+        v.getSucessorNodes().stream().forEach((w) -> {          
+            if (w.index == Integer.MAX_VALUE){
+              // Successor w has not yet been visited; recurse on it
+              strongconnect(w);
+              v.lowlink  = min(v.lowlink, w.lowlink);
+            }
+            else if (w.onStack){
+              // Successor w is in stack S and hence in the current SCC
+              // If w is not on stack, then (v, w) is a cross-edge in the DFS tree and must be ignored
+              // Note: The next line may look odd - but is correct.
+              // It says w.index not w.lowlink; that is deliberate and from the original paper
+              v.lowlink  = min(v.lowlink, w.index);
+            }
+        });
+
+        // If v is a root node, pop the stack and generate an SCC
+        if (v.lowlink == v.index) {
+            //start a new strongly connected component
+            scc = new ArrayList();
+            
+            do{
+              wscc = S.pop();
+              wscc.onStack = false;
+              //add w_scc to current strongly connected component
+              scc.add(wscc);
+            }while (wscc.getId().compareTo(v.getId())!=0); //Test it is not the same node (w != v).
+            //!wscc.hasThisMark(v.getMark())
+            //output the current strongly connected component
+            this.sccAll.add(scc);
+        }
+        //return null;               
+    }
+    
     private void connectTarjanDuplicatesCoverGraph(){
         Node dupNode;        
         Node parentNode;
@@ -299,6 +407,55 @@ public class PN {
         //Whether the graph has a directed circuir with all transitions in it.
         return false;
     }  
+    
+    public boolean isPNReversible(List<List<Node>> sccList, Graph graph){
+        
+        List<List<Node>> sccListWithn0 = new ArrayList<List<Node>>();
+        
+        boolean hasAllNodes=true;
+        boolean isNodeInSCC;
+        
+        //Get SCC's that contain n0.
+        for(List<Node> scc: sccList){
+            //Get the nodes in each scc.
+            for(Node node: scc){
+                if(node.getId().compareTo("n0")==0){
+                    sccListWithn0.add(scc);
+                    break;
+                }
+            }
+        }
+        
+        nodesLoop:
+        for(Node node: graph.getNodes()){
+            isNodeInSCC = false;
+            sccLoop:for(List<Node> scc: sccListWithn0){
+                        for(Node sccNode: scc){
+                            if(sccNode.getId().compareTo(node.getId())==0){
+                                isNodeInSCC = true;
+                                break sccLoop;
+                            }
+                        }
+                    }
+            hasAllNodes = hasAllNodes & isNodeInSCC ;
+            if (!hasAllNodes)
+                break;
+        }
+               
+        return hasAllNodes;                    
+    }
+    
+    public boolean isPNLiveness(List<List<Node>> scc){
+        for (List<Node> circuit : scc) {
+            if (!this.hasAllTransitions(circuit)) {
+                return false;
+            }
+        }
+        //Implement tarjan algorithm to find this.
+        //Whether the graph has a directed circuir with all transitions in it.
+        return true;
+    }
+    
     
     private boolean hasAllTransitions(List<Node> circuit){
         List<String> trans = new ArrayList<>();

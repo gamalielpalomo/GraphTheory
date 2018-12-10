@@ -27,8 +27,27 @@ import javax.swing.JLabel;
  * @author Tania Rodriguez
  */
 public class Main extends javax.swing.JFrame {
-
+    
+    private boolean graphOption = true;
     private PN petriNet;
+    
+    private void reloadPicture(java.awt.ScrollPane panel, String pictureName){
+        BufferedImage img;
+        JLabel picLabel = null;
+        try {
+            img = ImageIO.read(new File(pictureName));
+            picLabel = new JLabel(new ImageIcon(img));
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+            Logger.getLogger(Globals.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //new GraphFrame(nombreArchivo);
+        panel.removeAll();
+        panel.add(picLabel);
+        //panel1.add(new GraphJPanel("PetriNetwork",panel1.getWidth(),panel1.getHeight()));
+        panel.repaint();
+    }
     /**
      * Creates new form Main
      */
@@ -49,6 +68,7 @@ public class Main extends javax.swing.JFrame {
         button_run = new javax.swing.JButton();
         PNPanel = new java.awt.ScrollPane();
         CGPanel = new java.awt.ScrollPane();
+        changeCG = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setBackground(new java.awt.Color(255, 255, 204));
@@ -67,6 +87,13 @@ public class Main extends javax.swing.JFrame {
             }
         });
 
+        changeCG.setText("Change Cover Graph");
+        changeCG.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                changeCGActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -77,7 +104,9 @@ public class Main extends javax.swing.JFrame {
                         .addGap(21, 21, 21)
                         .addComponent(button_loadFile)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(button_run, javax.swing.GroupLayout.PREFERRED_SIZE, 78, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(button_run, javax.swing.GroupLayout.PREFERRED_SIZE, 78, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(changeCG))
                     .addGroup(layout.createSequentialGroup()
                         .addGap(20, 20, 20)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -91,7 +120,8 @@ public class Main extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(button_loadFile)
-                    .addComponent(button_run))
+                    .addComponent(button_run)
+                    .addComponent(changeCG))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 81, Short.MAX_VALUE)
                 .addComponent(PNPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 216, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -122,7 +152,7 @@ public class Main extends javax.swing.JFrame {
         System.out.println("Building cover graph picture");
         Globals.makeCoverGraph(petriNet.getCoverGraph(), "CoverGraph");
         System.out.println("Building Tarjan cover graph picture");
-        Globals.makeCoverGraph(petriNet.getTarjanCoverGraph(), "Tarjan Cover Graph");
+        Globals.makeCoverGraph(petriNet.getTarjanCoverGraph(), "TarjanCoverGraph");
         
         BufferedImage img;
         JLabel picLabel = null;
@@ -153,7 +183,20 @@ public class Main extends javax.swing.JFrame {
         CGPanel.add(picLabel);
         //panel1.add(new GraphJPanel("PetriNetwork",panel1.getWidth(),panel1.getHeight()));
         CGPanel.repaint();
-        
+  
+        System.out.println("---------- BUILDING PETRI NET PROPERTIES------------");
+        List<List<Node>> scc = petriNet.Tarjan(petriNet.getTarjanCoverGraph());
+        System.out.println("Is the PN bounded: "+ petriNet.isPNBounded());
+        System.out.println("PN bound: "+ petriNet.isPNBounded());
+        if(petriNet.getMaxBoundValue() == Integer.MAX_VALUE)
+            System.out.println("Not a bounded PN");
+        else System.out.println(petriNet.getMaxBoundValue());
+        System.out.println("Is the PN block free: "+ petriNet.isPNBlockageFree());
+        System.out.println("Is the PN srictly conservative: "+ petriNet.isPNEstrictlyConservative());
+        System.out.println("Is the PN repetitive: "+ petriNet.isPNRepetitive(scc));
+        System.out.println("Is the PN reversible: "+ petriNet.isPNReversible(scc,petriNet.getTarjanCoverGraph()));
+        System.out.println("Is the PN a live PN: "+ petriNet.isPNLiveness(scc));
+        System.out.println("Number of SCC: "+ scc.size());
     }//GEN-LAST:event_button_runActionPerformed
 
     private void button_loadFileActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button_loadFileActionPerformed
@@ -226,6 +269,18 @@ public class Main extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_button_loadFileActionPerformed
 
+    private void changeCGActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_changeCGActionPerformed
+        // TODO add your handling code here:
+        if (graphOption){
+            reloadPicture(CGPanel,"TarjanCoverGraph.png");
+            graphOption = false;
+        }
+        else{
+            reloadPicture(CGPanel, "CoverGraph.png");
+            graphOption = true;
+        }
+    }//GEN-LAST:event_changeCGActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -264,5 +319,6 @@ public class Main extends javax.swing.JFrame {
     private java.awt.ScrollPane PNPanel;
     private javax.swing.JButton button_loadFile;
     private javax.swing.JButton button_run;
+    private javax.swing.JButton changeCG;
     // End of variables declaration//GEN-END:variables
 }

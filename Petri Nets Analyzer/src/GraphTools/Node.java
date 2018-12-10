@@ -44,9 +44,9 @@ public class Node {
         preTransitions = new ArrayList();
     }
     
-    public Node(String id, int[] marking){
+    public Node(String id, int[] m){
         this(id);
-        this.marking = marking;
+        this.marking = m;
     }
     
     public void setType(NodeType type){ this.type = type; }
@@ -153,5 +153,14 @@ public class Node {
         }
         
         return sum;
+    }
+    
+    public List<Node> getSucessorNodes(){
+        List<Node> succNodes = new ArrayList<>();
+                
+        postTransitions.stream().forEach((transition) -> {
+            succNodes.add(transition.getEnd());
+        });
+        return succNodes;
     }
 }
