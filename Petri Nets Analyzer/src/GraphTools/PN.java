@@ -38,7 +38,50 @@ public class PN {
         S = new Stack<>();
         index = 0;
     }
-    
+    public void buildCoverGraph(){
+        coverGraph = new Graph();
+        int id = 0, j;
+        
+        Node nz = new Node("n" + String.valueOf(id), Globals.marking);
+        coverGraph.addNode(nz, true);
+        id++;
+        Node nk;
+        int transitions[];
+        int mz[];
+        
+        while((nk = coverGraph.getNodeType(NodeType.FRONTERA)) != null){
+            //Verificar que no sea duplicado
+            if(coverGraph.getDuplicatedNodeNotFrontier(nk) != null){
+                nk.setType(NodeType.DUPLICADO);
+            }
+            else{ //el nodo no es duplicado
+                transitions = this.buildActiveTransitions(nk.getMarking()); //buscar transiciones habilitadas
+            
+                if(transitions == null){ //no hay transiciones habilitadas para el nodo
+                    nk.setType(NodeType.TERMINAL);
+                }
+                else{                   //hay transiciones 
+                    nk.setType(NodeType.EXPANDIDO);
+                    for(j = 0; j < Array.getLength(transitions); j++){
+                        if(transitions[j] == 1){
+                            //Se crea el nodo nz
+                            mz = this.buildNextMarking(nk.getMarking(), buildFiringVector(j));
+                            nz = new Node("n" + String.valueOf(id), mz);// se crea como nodo frontera
+                            coverGraph.addNode(nz, false);
+                            id++;
+                            //Se crea transicion para nk --> nz
+                            Transition t = nk.addTransition(nz, "t"+ String.valueOf(j));
+                            nz.addPreTransition(t);
+                            //Buscar si no tiene Ws
+                            nz.setWs();
+                        }
+                    }
+                }
+            }
+            
+        }
+    }
+    /*
     public void buildCoverGraph(){
         
         int []transitions;
@@ -52,6 +95,7 @@ public class PN {
         Node itNode;
         int id = 1;
         while( (itNode = coverGraph.getNodeType(NodeType.FRONTERA)) != null ){
+            System.out.println("Aqui se queda");
             if( coverGraph.getDuplicatedNodeNotFrontier(itNode) != null )
                 itNode.setType( NodeType.DUPLICADO );
             else{
@@ -81,6 +125,7 @@ public class PN {
         }
         
     }//End of buildCoverGraph
+    */
     
         /**
      * Computes Coverage Graph for Tarjan Algorithm Processing.
@@ -181,9 +226,12 @@ public class PN {
                node = circuit.get(0);
                for(int j = 0; j < node.getPostTransitions().size(); j++){
                    t = node.getPostTransitions().get(j);
-                   if(node.getId().compareTo(t.getEnd().getId())==0){
-                      delete = false; 
+                   if(t.getEnd()!=null){
+                        if(node.getId().compareTo(t.getEnd().getId())==0){
+                          delete = false; 
+                       }
                    }
+                   
                }
                if(delete){
                    scc.remove(circuit);
@@ -206,19 +254,23 @@ public class PN {
            
         // Consider successors of v
         //for each (v, w) in E do
-        v.getSucessorNodes().stream().forEach((w) -> {          
-            if (w.index == Integer.MAX_VALUE){
-              // Successor w has not yet been visited; recurse on it
-              strongconnect(w);
-              v.lowlink  = min(v.lowlink, w.lowlink);
+        System.out.println("Sucessors of "+v.getId()+":");
+        v.getSucessorNodes().stream().forEach((w) -> { 
+            if (w != null){
+                    if (w.index == Integer.MAX_VALUE){
+                    // Successor w has not yet been visited; recurse on it
+                    strongconnect(w);
+                    v.lowlink  = min(v.lowlink, w.lowlink);
+                }
+                else if (w.onStack){
+                  // Successor w is in stack S and hence in the current SCC
+                  // If w is not on stack, then (v, w) is a cross-edge in the DFS tree and must be ignored
+                  // Note: The next line may look odd - but is correct.
+                  // It says w.index not w.lowlink; that is deliberate and from the original paper
+                  v.lowlink  = min(v.lowlink, w.index);
+                }
             }
-            else if (w.onStack){
-              // Successor w is in stack S and hence in the current SCC
-              // If w is not on stack, then (v, w) is a cross-edge in the DFS tree and must be ignored
-              // Note: The next line may look odd - but is correct.
-              // It says w.index not w.lowlink; that is deliberate and from the original paper
-              v.lowlink  = min(v.lowlink, w.index);
-            }
+            
         });
 
         // If v is a root node, pop the stack and generate an SCC
@@ -285,9 +337,9 @@ public class PN {
     
     private int[] multiply( int[][] matrix, int[] vector ){
         //This method returns the result of multiplying a bidimensional matrix and a vector.
-        int []result = new int[vector.length];
+        int []result = new int[matrix.length];
         for( int matrixRow = 0; matrixRow < matrix.length; matrixRow++){
-            for( int matrixColumn = 0; matrixColumn < vector.length; matrixColumn++ )
+            for( int matrixColumn = 0; matrixColumn < matrix[0].length; matrixColumn++ )
                 result[matrixRow] += matrix[matrixRow][matrixColumn] * vector[matrixColumn];
         }
         return result;

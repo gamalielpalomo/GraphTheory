@@ -93,7 +93,7 @@ public class Globals {
         
     }
     public static void makeCoverGraph(Graph gcover, String fileName) {
-        System.out.println("Nodes in cover graph: "+gcover.getNodes().size());
+        System.out.println("Nodes in "+fileName+": "+gcover.getNodes().size());
         
         String nombreArchivo = fileName;
         String content = "digraph CoverGraph          {\n"
@@ -110,8 +110,12 @@ public class Globals {
         for(int i=0;i<gcover.getNodes().size();i++){
             //System.out.println(""+gcover.getNodes().get(i).getParent().getMarkString()+"->"+gcover.getNodes().get(i).getMarkString()+"sda");           
             for( int j=0; j<gcover.getNodes().get(i).getPostTransitions().size(); j++ ){
+                try{
                 //System.out.println(""+gcover.getNodes().get(i).getMarkString()+"->"+gcover.getNodes().get(i).getTransitions().get(j).getEnd().getMarkString()+" : "+gcover.getNodes().get(i).getTransitions().get(j).getId());
                 content = content + "\"" + gcover.getNodes().get(i).getMarkString() + "\" -> \"" + gcover.getNodes().get(i).getPostTransitions().get(j).getEnd().getMarkString() + "\" [dir=normal,weight=1,label = \""+gcover.getNodes().get(i).getPostTransitions().get(j).getId()+"\"] ;\n";
+                }catch(NullPointerException npe){
+                    System.out.println(npe.getMessage());
+                }
             }
         }
               
