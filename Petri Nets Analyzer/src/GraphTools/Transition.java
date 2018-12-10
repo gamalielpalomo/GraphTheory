@@ -23,7 +23,7 @@ public class Transition {
     
     public void setId(String id){this.id = id;}
     public void setEnd(Node end){this.postPlace = end;}
-    
     public void setTransitionTo(Node node){postPlace = node;}
     
+    public Node getEnd(){ return postPlace; }    
 }

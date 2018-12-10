@@ -11,7 +11,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import javax.swing.JFileChooser;
+import GraphTools.*;
 import Global.Globals;
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
 
 /**
  *
@@ -19,6 +28,7 @@ import Global.Globals;
  */
 public class Main extends javax.swing.JFrame {
 
+    private PN petriNet;
     /**
      * Creates new form Main
      */
@@ -37,8 +47,11 @@ public class Main extends javax.swing.JFrame {
 
         button_loadFile = new javax.swing.JButton();
         button_run = new javax.swing.JButton();
+        PNPanel = new java.awt.ScrollPane();
+        CGPanel = new java.awt.ScrollPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setBackground(new java.awt.Color(255, 255, 204));
 
         button_loadFile.setText("Load file");
         button_loadFile.addActionListener(new java.awt.event.ActionListener() {
@@ -59,32 +72,95 @@ public class Main extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(button_loadFile, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(button_run, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(324, Short.MAX_VALUE))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(21, 21, 21)
+                        .addComponent(button_loadFile)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(button_run, javax.swing.GroupLayout.PREFERRED_SIZE, 78, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(20, 20, 20)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(PNPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 807, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(CGPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 807, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(26, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(button_loadFile)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(button_loadFile)
+                    .addComponent(button_run))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 81, Short.MAX_VALUE)
+                .addComponent(PNPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 216, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(button_run)
-                .addContainerGap(294, Short.MAX_VALUE))
+                .addComponent(CGPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 341, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
     private void button_runActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button_runActionPerformed
-        // TODO add your handling code here:
+        petriNet = new PN( Globals.preMatrix, Globals.postMatrix, Globals.marking );
+        System.out.println("Pre matrix:");
+        Globals.printMatrix(petriNet.getPreMatrix());
+        System.out.println("Post matrix:");
+        Globals.printMatrix(petriNet.getPostMatrix());
+        System.out.println("Incidence matrix:");
+        Globals.printMatrix(petriNet.getIncidenceMatrix());
+        System.out.println("Marking vector:");
+        Globals.printVector(petriNet.getMarkingVector());
+        
+        System.out.println("Building cover graph");
+        petriNet.buildCoverGraph();
+        System.out.println("Building cover graph using Tarjan");
+        petriNet.buildTarjanCoverGraph();
+        System.out.println("Building petri net picture");
+        Globals.makeGraph(petriNet.getPreMatrix(), petriNet.getPostMatrix());
+        System.out.println("Building cover graph picture");
+        Globals.makeCoverGraph(petriNet.getCoverGraph(), "CoverGraph");
+        System.out.println("Building Tarjan cover graph picture");
+        Globals.makeCoverGraph(petriNet.getTarjanCoverGraph(), "Tarjan Cover Graph");
+        
+        BufferedImage img;
+        JLabel picLabel = null;
+        try {
+            img = ImageIO.read(new File("PetriNetwork.png"));
+            picLabel = new JLabel(new ImageIcon(img));
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+            Logger.getLogger(Globals.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //new GraphFrame(nombreArchivo);
+        PNPanel.removeAll();
+        PNPanel.add(picLabel);
+        //panel1.add(new GraphJPanel("PetriNetwork",panel1.getWidth(),panel1.getHeight()));
+        PNPanel.repaint();
+        
+        try {
+            img = ImageIO.read(new File("CoverGraph.png"));
+            picLabel = new JLabel(new ImageIcon(img));
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+            Logger.getLogger(Globals.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+        //new GraphFrame(nombreArchivo);
+        CGPanel.removeAll();
+        CGPanel.add(picLabel);
+        //panel1.add(new GraphJPanel("PetriNetwork",panel1.getWidth(),panel1.getHeight()));
+        CGPanel.repaint();
+        
     }//GEN-LAST:event_button_runActionPerformed
 
     private void button_loadFileActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_button_loadFileActionPerformed
         
         JFileChooser fileChooser = new JFileChooser();
+        File workingDirectory = new File(System.getProperty("user.dir"));
+        fileChooser.setCurrentDirectory(workingDirectory);
         int returnVal = fileChooser.showOpenDialog(this);
         if(returnVal == JFileChooser.APPROVE_OPTION){
             
@@ -135,11 +211,9 @@ public class Main extends javax.swing.JFrame {
                 
                 //Now in the following lines we obtain the initial marking from a predefined file
                 
-                inputFile = new File("init");
-                scanner = new Scanner(inputFile);
-                while(scanner.hasNextLine()){
-                    inputText += scanner.nextLine();
-                }
+                Path filePath = Paths.get(workingDirectory + "\\init");
+                scanner = new Scanner(filePath);
+                inputText = scanner.nextLine();
                 tmpInput = inputText.split(",");
                 Globals.marking = new int[Globals.postMatrix.length];
                 for (int i=0; i<tmpInput.length; i++){
@@ -186,6 +260,8 @@ public class Main extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private java.awt.ScrollPane CGPanel;
+    private java.awt.ScrollPane PNPanel;
     private javax.swing.JButton button_loadFile;
     private javax.swing.JButton button_run;
     // End of variables declaration//GEN-END:variables

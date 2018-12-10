@@ -10,8 +10,5 @@ package GraphTools;
  * @author Tania Rodriguez
  */
 public enum NodeType {
-    DUPLICADO,
-    EXPANDIDO,
-    FRONTERA,
-    TERMINAL
+    DUPLICADO, EXPANDIDO, FRONTERA, TERMINAL
 }

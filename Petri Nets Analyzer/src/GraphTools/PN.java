@@ -5,6 +5,9 @@
  */
 package GraphTools;
 import Global.Globals;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.List;
 /**
  *
  * @author Tania Rodriguez
@@ -12,18 +15,22 @@ import Global.Globals;
 public class PN {
     
     private Graph coverGraph;
+    private Graph tarjanCG;
     
-    int preMatrix[][];
-    int postMatrix[][];
-    int incidenceMatrix[][];
+    private int[][] preMatrix;
+    private int[][] postMatrix;
+    private int[][] incidenceMatrix;
+    private int[] marking;
     
-    public PN(int[][] preMatrix, int[][] postMatrix){
+    public PN(int[][] preMatrix, int[][] postMatrix, int[] marking){
         this.preMatrix = preMatrix;
         this.postMatrix = postMatrix;
         incidenceMatrix = buildIncidenceMatrix();
+        this.marking = marking;
+        coverGraph = null;
     }
     
-    private void buildCoverGraph(){
+    public void buildCoverGraph(){
         
         int []transitions;
         
@@ -57,6 +64,7 @@ public class PN {
                             //A new transition itNode -> newMarkingNode is created.
                             Transition newTransition = itNode.addTransition(newMarkingNode, "t"+i);
                             newMarkingNode.addPreTransition(newTransition);
+                            newMarkingNode.setWs();
                         }
                     }
                 }
@@ -65,11 +73,105 @@ public class PN {
         
     }//End of buildCoverGraph
     
+        /**
+     * Computes Coverage Graph for Tarjan Algorithm Processing.
+     */
+    public void buildTarjanCoverGraph(){
+        tarjanCG = new Graph();
+        int id = 0, j;
+        
+        Node nz = new Node("n" + String.valueOf(id), marking);
+        tarjanCG.addNode(nz, true);
+        id++;
+        Node nk, dupNode;
+        int transitions[];
+        int mz[];
+        
+        
+        while((nk = tarjanCG.getNodeType(NodeType.FRONTERA)) != null){
+            //Verificar que no sea duplicado
+            if(tarjanCG.getDuplicatedNodeNotFrontier(nk) != null){
+                nk.setType(NodeType.DUPLICADO);                                
+            }
+            else{ //el nodo no es duplicado
+                transitions = this.buildActiveTransitions(nk.getMarking()); //buscar transiciones habilitadas
+            
+                if(transitions == null){ //no hay transiciones habilitadas para el nodo
+                    nk.setType(NodeType.TERMINAL);
+                }
+                else{                   //hay transiciones 
+                    nk.setType(NodeType.EXPANDIDO);
+                    for(j = 0; j < Array.getLength(transitions); j++){
+                        if(transitions[j] == 1){
+                            //Se crea el nodo nz
+                            mz = this.buildNextMarking(nk.getMarking(), buildFiringVector(j));
+                            nz = new Node("n" + String.valueOf(id), mz);// se crea como nodo frontera
+                            tarjanCG.addNode(nz, false);
+                            id++;
+                            //Se crea transicion para nk --> nz
+                            Transition t = nk.addTransition(nz, "t"+ String.valueOf(j+1));
+                            //Buscar si no tiene Ws
+                            nz.setWs();                           
+                            
+                            /*dupNode = tarjanCG.getDuplicateNodeNotFrontera(nz);
+                            
+                            if(dupNode != null){                                
+                                t.redirectTransitionTo(dupNode);
+                                if(!tarjanCG.removeNode(nz))
+                                    System.out.print("Error: Could not remove node with Id:" + nz.getId());
+                                else
+                                    System.out.print("Seccessfully remove node with Id:" + nz.getId());
+                                dupNode.setType(NodeType.DUPLICADO);
+                            } */              
+                        }
+                    }
+                }
+            }
+            
+        }
+        connectTarjanDuplicatesCoverGraph();
+    }
+    private void connectTarjanDuplicatesCoverGraph(){
+        Node dupNode;        
+        Node parentNode;
+        Transition redirTrans;        
+        List<Node> allNodes;
+        List<Node> duplicateNodes = new ArrayList<>();
+        
+        if(tarjanCG== null){            
+            this.buildTarjanCoverGraph();            
+        }        
+        allNodes = tarjanCG.getNodes();
+        //Get duplicate Nodes only
+        
+        for(Node myNode : allNodes){ 
+            if(myNode.getType()==NodeType.DUPLICADO)
+                duplicateNodes.add(myNode);
+        }
+        
+        for(Node myNode : duplicateNodes){   
+            dupNode = tarjanCG.getDuplicateNodeExpandido(myNode);
+            //Find pre Transition that connect to myNode                    
+            parentNode = myNode.getParent();
+            for (int j=0; j< parentNode.getPostTransitions().size(); j++){
+                //Identify Transition that connects to myNode at its end
+                redirTrans = parentNode.getPostTransitions().get(j);
+                if (myNode.getId().compareTo(redirTrans.getEnd().getId())==0){
+                    redirTrans.setTransitionTo(dupNode); //Redirects transition to matching node                    
+                    tarjanCG.removeNode(myNode);
+                }
+            }
+
+            
+        }   
+    }
+    
     private int[] buildNextMarking(int []current, int []firingVector){
         //This method is used for creating a new marking node
         //current is the current marking vector of size preMatrix.length.
         //firing vector is the vector referencing the transition to be executed.
-        int []result  = multiply(incidenceMatrix, firingVector);
+        int []multResult  = multiply(incidenceMatrix, firingVector);
+        int []result = sumVectors(current, multResult);
         return result;
     }//End of buildNextMarking
     
@@ -83,6 +185,13 @@ public class PN {
         return result;
     }//End of multiply
     
+    private int[] sumVectors(int[] vector1, int[] vector2){
+        int []result = new int[vector1.length];
+        for (int i = 0; i < vector1.length; i++)
+            result[i] = vector1[i] + vector2[i];
+        return result;
+    }
+    
     private int[] buildFiringVector(int column){
         int []result = new int[preMatrix[0].length];
         for( int i = 0; i < preMatrix[0].length; i++)
@@ -90,14 +199,14 @@ public class PN {
         return result;
     }
     
-    private int[] buildActiveTransitions(int[]marking){
+    private int[] buildActiveTransitions(int[]m){
         
         //This function builds the active transitions with the current marking
         //The length of vector has to be equal to the number of transitions in the system.
         //The active status is represented as a 1 for an active transition and as 0 for an inactive one.
         int []result = new int[preMatrix[0].length];
         for (int i = 0; i < preMatrix[0].length; i++){
-            result[i] = isActiveTransition(marking, i)? 1:0;
+            result[i] = isActiveTransition(m, i)? 1:0;
         }       
         
         boolean atLeastOneActive = false;
@@ -110,16 +219,23 @@ public class PN {
         
     }  //End of buildActiveTranstitions
     
-    private boolean isActiveTransition(int []marking, int transition){
+    private boolean isActiveTransition(int []m, int transition){
         boolean result = true;
         int []transitionPre = getMatrixColumn(preMatrix, transition);//Pre for transition
         for(int i = 0; i<preMatrix.length; i++){
-            if(marking[i]<transitionPre[i]){
+            if(m[i]<transitionPre[i]){
                 return false;
             }
         }
         return result;
     }//End of isActiveTransition
+    
+    public int[][] getPreMatrix(){ return preMatrix; }
+    public int[][] getPostMatrix(){ return postMatrix; }
+    public int[][] getIncidenceMatrix(){ return incidenceMatrix; }
+    public int[] getMarkingVector(){ return marking; }
+    public Graph getCoverGraph(){ return coverGraph; }
+    public Graph getTarjanCoverGraph(){ return tarjanCG; }
     
     //This method gets the transposed vector in a matrix for a determined column index.
     //Is useful for obtaining a pre for a determined transition in a PN.
@@ -141,5 +257,63 @@ public class PN {
         coverGraph = null;
         return result;
     }//End of buildIncidenceMatrix.
+    
+    // Determinacion de propiedades de RP .......... //    
+    public boolean isPNBounded(){
+        //Ask the graph whether it contains a w in its markings.
+
+        int maxBound;
+        if(this.coverGraph != null){
+            return (this.coverGraph.getMaxBound() != Node.W);
+        }
+        return false;
+    }      
+    // Determinacion de propiedades de RP .......... //    
+    public int getMaxBoundValue(){
+    
+        if(this.coverGraph != null){
+            return this.coverGraph.getMaxBound();
+        }
+        //Ask the graph whether it contains a w in its markings.
+        return 0;
+    } 
+    public boolean isPNBlockageFree(){        
+        if(this.coverGraph != null){
+            return !(this.coverGraph.hasTerminalNodes());
+        }
+        
+        return true;
+    }    
+    public boolean isPNEstrictlyConservative (){
+        // Ask the Graph whether the it is bounded and the sum_of_marks is constant across all nodes.
+        return coverGraph.isEstrictlyConservative();
+    } 
+    public boolean isPNRepetitive(List<List<Node>> scc){
+        
+        for (List<Node> circuit : scc) {
+            if (this.hasAllTransitions(circuit)) {
+                return true;
+            }
+        }
+        //Implement tarjan algorithm to find this.
+        //Whether the graph has a directed circuir with all transitions in it.
+        return false;
+    }  
+    
+    private boolean hasAllTransitions(List<Node> circuit){
+        List<String> trans = new ArrayList<>();
+        
+        for (Node node : circuit) {
+            for (Transition transition : node.getPostTransitions()) {
+                if(circuit.contains(transition.getEnd())){
+                    if(!trans.contains(transition.getId())){
+                        trans.add(transition.getId());
+                    }
+                }
+            }
+        }
+        
+        return (trans.size() == this.preMatrix[0].length);
+    }
     
 }
